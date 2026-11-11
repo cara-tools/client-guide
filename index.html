@@ -189,6 +189,8 @@ body[data-orient="landscape"] #pvdlg .rep{max-width:1240px}
 
 .recrow{display:grid;grid-template-columns:minmax(150px,1fr) minmax(150px,1fr) minmax(120px,.8fr);gap:12px;align-items:end;padding:12px 0;border-top:1px solid var(--line)}
 .recrow:first-of-type{border-top:0}
+.idealprem{margin-top:12px}
+.idealprem textarea{min-height:70px;max-width:none}
 .recrow .ideal{font-size:.88rem;color:var(--muted);padding-bottom:12px}
 .recrow .ideal b{display:block;color:var(--ink);font-weight:600;font-size:.98rem}
 .recrow .f{margin:0}
@@ -670,7 +672,7 @@ function spaNote(a){
 }
 
 /* ---------- state ---------- */
-const person = () => ({name:"",dob:"",age:"",gross:"",net:"",ret:String(CFG.retAge || 67),retAuto:true,full:"",half:"",extra:""});
+const person = () => ({name:"",dob:"",age:"",gross:"",net:"",ret:String(CFG.retAge || 67),retAuto:true,full:"",half:"",extra:"",ipPrem:"",mortPrem:"",famPrem:"",ipNote:"",mortNote:"",famNote:""});
 const rec = () => ({ip:"",ipDef:"",ipTo:"",life:"",lifeTerm:"",cic:"",cicTerm:"",fib:"",fibTerm:"",auto:{}});
 const fresh = () => ({
   id:"", updated:0,
@@ -735,6 +737,8 @@ function select(label, path, opts, o = {}){
   const cur = get(path);
   return `<label class="f"><span class="l">${label}</span><span class="in"><select data-p="${path}"${o.re ? " data-re" : ""}>${opts.map(([v,t]) => `<option value="${v}"${String(v) === String(cur) ? " selected" : ""}>${t}</option>`).join("")}</select></span>${o.hint ? `<small>${o.hint}</small>` : ""}</label>`;
 }
+/* expected monthly premium typed against each Ideal Scenario card; data-re so typing doesn't redraw the box */
+const premIn = (i, k) => `<label class="f idealprem"><span class="l">Expected monthly premium</span><span class="in"><i>£</i><input type="text" inputmode="decimal" data-re data-p="a.${i}.${k}" value="${esc(S.a[i][k])}" placeholder="0.00"><i>a month</i></span></label><label class="f idealprem"><span class="l">Notes</span><textarea data-re data-p="a.${i}.${k.replace("Prem","Note")}" placeholder="e.g. Why this may not be needed, or anything to bear in mind">${esc(S.a[i][k.replace("Prem","Note")])}</textarea></label>`;
 const live = name => `<div class="live" data-live="${name}">${LIVE[name]()}</div>`;
 const term = (q, a) => `<details class="term"><summary>${q}</summary><p>${a}</p></details>`;
 
@@ -1082,22 +1086,26 @@ const LIVE = {
       h += `<h3>${nm(p.i)}</h3><div class="needgrid">`;
       h += `<div class="need"><h4>Income if too ill to work</h4><p class="who">Income protection</p>
         <p class="big">${gbp(p.ipIdeal)}/month</p><p>Until age ${p.ipTo}</p>
-        <p class="how">65% of your ${gbp((num(a.gross) + p.gross2)/12)} monthly pay before tax${p.gross2 ? ", including your other work" : ""}. Insurers set their own limits, so the final figure may differ.</p></div>`;
+        <p class="how">65% of your ${gbp((num(a.gross) + p.gross2)/12)} monthly pay before tax${p.gross2 ? ", including your other work" : ""}. Insurers set their own limits, so the final figure may differ.</p>${premIn(p.i, "ipPrem")}</div>`;
       if (!p.lifeIdeal && p.cicIdeal) h += `<div class="need"><h4>Clear the mortgage</h4><p class="who">Critical illness cover</p>
         <p class="big">${gbp(p.cicIdeal)}</p><p>Critical illness cover, over ${yrs(p.mTerm)}</p>
-        <p class="how">No one relies on your income, so life cover isn't usually needed. Critical illness cover still matters, because you'd still have the mortgage to pay if you were seriously ill. If life cover comes with it at little or no extra cost, we may still include it.${mortgageNote() ? ` ${mortgageNote()}.` : ""}</p></div>`;
+        <p class="how">No one relies on your income, so life cover isn't usually needed. Critical illness cover still matters, because you'd still have the mortgage to pay if you were seriously ill. If life cover comes with it at little or no extra cost, we may still include it.${mortgageNote() ? ` ${mortgageNote()}.` : ""}</p>${premIn(p.i, "mortPrem")}</div>`;
       else h += `<div class="need"><h4>Clear the mortgage</h4><p class="who">Life and critical illness cover</p>
         <p class="big">${gbp(p.lifeIdeal)}</p><p>Life and critical illness cover, over ${yrs(p.mTerm)}</p>
-        <p class="how">${p.noDeps ? `You'd like the home left mortgage-free${has(S.lifeWhy) ? ` (${esc(S.lifeWhy)})` : ""}. ` : ""}${coveredM().length > 1 ? `${coveredM().map(m => `Your ${gbp(m.amt)} ${m.label} over ${yrs(m.term)}: ${basisTxt(m)}`).join(". ")}.` : `Matches your ${gbp(num(S.mAmt))} ${S.mType === "repayment" ? "repayment" : "interest-only"} mortgage. ${S.mType === "repayment" ? "Decreasing cover usually fits, as it goes down with the mortgage." : "Level cover usually fits, as the balance doesn't go down."}`}${mortgages().some(m => !m.cover) ? ` ${mortgages().filter(m => !m.cover).map(m => `Your ${gbp(m.amt)} ${m.label} isn't included, as you chose not to cover it.`).join(" ")}` : ""}</p></div>`;
+        <p class="how">${p.noDeps ? `You'd like the home left mortgage-free${has(S.lifeWhy) ? ` (${esc(S.lifeWhy)})` : ""}. ` : ""}${coveredM().length > 1 ? `${coveredM().map(m => `Your ${gbp(m.amt)} ${m.label} over ${yrs(m.term)}: ${basisTxt(m)}`).join(". ")}.` : `Matches your ${gbp(num(S.mAmt))} ${S.mType === "repayment" ? "repayment" : "interest-only"} mortgage. ${S.mType === "repayment" ? "Decreasing cover usually fits, as it goes down with the mortgage." : "Level cover usually fits, as the balance doesn't go down."}`}${mortgages().some(m => !m.cover) ? ` ${mortgages().filter(m => !m.cover).map(m => `Your ${gbp(m.amt)} ${m.label} isn't included, as you chose not to cover it.`).join(" ")}` : ""}</p>${premIn(p.i, "mortPrem")}</div>`;
       if (p.hasDeps){
         h += `<div class="need"><h4>Income for your family</h4><p class="who">Family Income Benefit</p>
           <p class="big">${gbp(p.famIdeal)}/month</p><p>For ${yrs(p.famTerm)}${p.famLump ? ` (about ${gbp(p.famLump)} as a lump sum)` : ""}</p>
-          <p class="how">Your household would need about ${gbp(p.famRequired)} a month once the mortgage is paid off${num(a.extra) ? `, including ${gbp(num(a.extra))} of extra costs` : ""}${p.survivor ? `. ${gbp(p.survivor)} a month would carry on${S.joint === "2" ? `, including ${nm(other(p.i))}'s take-home pay` : ""}` : ""}. ${p.famTermBasis === "kids" ? `Lasts until your youngest is ${num(S.depAge)}.` : `Lasts until age ${p.ret}.`}</p></div>`;
+          <p class="how">Your household would need about ${gbp(p.famRequired)} a month once the mortgage is paid off${num(a.extra) ? `, including ${gbp(num(a.extra))} of extra costs` : ""}${p.survivor ? `. ${gbp(p.survivor)} a month would carry on${S.joint === "2" ? `, including ${nm(other(p.i))}'s take-home pay` : ""}` : ""}. ${p.famTermBasis === "kids" ? `Lasts until your youngest is ${num(S.depAge)}.` : `Lasts until age ${p.ret}.`}</p>${premIn(p.i, "famPrem")}</div>`;
       } else {
         h += `<div class="need"><h4>Income for your family</h4><p class="who">Family Income Benefit</p><p class="big">Not needed</p><p class="how">No one relies on your income, so this usually isn't needed.</p></div>`;
       }
       h += `</div>`;
+      const pt = num(a.ipPrem) + num(a.mortPrem) + (p.hasDeps ? num(a.famPrem) : 0);
+      if (pt) h += `<p class="how"><strong>Expected total for ${nm(p.i)}: ${gbpp(pt)} a month</strong></p>`;
     }
+    const ht = c.people.reduce((t,p) => t + num(S.a[p.i].ipPrem) + num(S.a[p.i].mortPrem) + (p.hasDeps ? num(S.a[p.i].famPrem) : 0), 0);
+    if (ht && c.people.length > 1) h += `<p class="how"><strong>Expected total for the household: ${gbpp(ht)} a month</strong></p>`;
     return h;
   },
   gaps(){
@@ -2208,7 +2216,7 @@ function renderClients(){
   ul.innerHTML = all.length ? all.map(d => {
     const u = (d.ex || []).filter(p => !p.decision).length;
     return `<li><span><b>${esc(labelOf(hydrate(d)))}</b><small>Saved ${timeTxt(d.updated)}${u ? `, ${u} existing ${u === 1 ? "policy" : "policies"} to decide` : ""}</small></span>
-      <span class="acts"><button type="button" class="filebtn" data-open="${d.id}">Open</button><button type="button" class="linkbtn" data-delc="${d.id}">Delete</button></span></li>`;
+      <span class="acts"><button type="button" class="filebtn" data-dl="${d.id}">Download</button><button type="button" class="filebtn" data-open="${d.id}">Open</button><button type="button" class="linkbtn" data-delc="${d.id}">Delete</button></span></li>`;
   }).join("") : `<li class="empty">No saved clients yet.</li>`;
 }
 
@@ -2475,7 +2483,8 @@ document.getElementById("openClients").addEventListener("click", () => { renderC
 document.getElementById("saveClient").addEventListener("click", () => { saveClient(); renderClients(); });
 document.getElementById("newClient").addEventListener("click", () => { if (newClient()) renderClients(); });
 cdlg.addEventListener("click", e => {
-  const o = e.target.closest("[data-open]"), d = e.target.closest("[data-delc]");
+  const o = e.target.closest("[data-open]"), d = e.target.closest("[data-delc]"), dl = e.target.closest("[data-dl]");
+  if (dl){ const c = loadAll()[dl.dataset.dl]; if (c) downloadClient(hydrate(c)); }
   if (o){
     if (dirty && !S.id && !confirm("This client hasn't been saved. Open another client anyway?")) return;
     if (S.id && dirty) saveClient();
@@ -2489,14 +2498,15 @@ cdlg.addEventListener("click", e => {
     renderClients();
   }
 });
-document.getElementById("exportClient").addEventListener("click", () => {
-  const blob = new Blob([JSON.stringify(S, null, 2)], {type:"application/json"});
+function downloadClient(c){
+  const blob = new Blob([JSON.stringify(c, null, 2)], {type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = `protection-${labelOf(S).toLowerCase().replace(/[^a-z0-9]+/g,"-")}.json`;
+  a.download = `protection-${labelOf(c).toLowerCase().replace(/[^a-z0-9]+/g,"-")}.json`;
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-});
+}
+document.getElementById("exportClient").addEventListener("click", () => downloadClient(S));
 /* ---------- start from a Fact Find PDF ----------
    The PDF is read in this browser. Only the pdf.js library is downloaded (from cdnjs); the file itself is never uploaded. */
 async function loadPdfJs(){
